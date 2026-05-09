@@ -1,4 +1,7 @@
-const API_BASE = 'http://localhost:3000/api';
+// Auto-detects environment: uses relative URL on Vercel, localhost when running locally
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api'
+  : '/api';
 
 async function sendMessage(message, file) {
   try {
@@ -30,7 +33,7 @@ async function sendMessage(message, file) {
   } catch (error) {
     console.error("Chat API error:", error);
     return {
-      reply: "Sorry, I am having trouble connecting to my local server right now.",
+      reply: "Sorry, I am having trouble connecting to the server right now. Please try again.",
       mood: "neutral"
     };
   }
