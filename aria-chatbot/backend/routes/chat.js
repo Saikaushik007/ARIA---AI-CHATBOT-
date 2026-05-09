@@ -74,8 +74,8 @@ router.post('/chat', upload.single('file'), async (req, res) => {
             content: file ? groqContent : messageText // Groq requires simple string if no image is present for standard models
         });
 
-        // Use Vision model if there is a file, otherwise use the fast Llama 3 model
-        const modelName = file ? 'llama-3.2-11b-vision-preview' : 'llama3-8b-8192';
+        // Use Vision model if there is a file, otherwise use the fast Llama 3.3 model
+        const modelName = file ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile';
 
         const response = await groq.chat.completions.create({
           messages: [
