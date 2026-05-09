@@ -1,78 +1,57 @@
-const db = require('./database');
+// In-memory store — works on Vercel serverless (no filesystem needed)
+// Note: Data resets on server restart, which is expected on serverless platforms.
+
+const sessions = new Map();   // sessionId -> { sessionId, userId, userName, sessionStart }
+const messages = new Map();   // sessionId -> [ { role, content, timestamp } ]
+const userSessions = new Map(); // userId -> [ sessionId ]
 
 function getSession(sessionId, userId) {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM sessions WHERE sessionId = ?', [sessionId], (err, row) => {
-      if (err) reject(err);
-      if (row) {
-        resolve(row);
-      } else {
-        const sessionStart = Date.now();
-        db.run('INSERT INTO sessions (sessionId, userId, userName, sessionStart) VALUES (?, ?, ?, ?)', 
-          [sessionId, userId || 'anonymous', null, sessionStart], 
-          (err) => {
-            if (err) reject(err);
-            resolve({ sessionId, userId, userName: null, sessionStart });
-          }
-        );
-      }
-    });
-  });
+  if (sessions.has(sessionId)) {
+    return Promise.resolve(sessions.get(sessionId));
+  }
+  const sessionStart = Date.now();
+  const session = { sessionId, userId: userId || 'anonymous', userName: null, sessionStart };
+  sessions.set(sessionId, session);
+  messages.set(sessionId, []);
+
+  // Track sessions per user
+  const uid = userId || 'anonymous';
+  if (!userSessions.has(uid)) userSessions.set(uid, []);
+  userSessions.get(uid).push(sessionId);
+
+  return Promise.resolve(session);
 }
 
 function updateUserName(sessionId, userName) {
-  return new Promise((resolve, reject) => {
-    db.run('UPDATE sessions SET userName = ? WHERE sessionId = ?', [userName, sessionId], (err) => {
-      if (err) reject(err);
-      resolve();
-    });
-  });
+  if (sessions.has(sessionId)) {
+    sessions.get(sessionId).userName = userName;
+  }
+  return Promise.resolve();
 }
 
 function saveMessage(sessionId, role, content) {
-  return new Promise((resolve, reject) => {
-    const timestamp = Date.now();
-    db.run('INSERT INTO messages (sessionId, role, content, timestamp) VALUES (?, ?, ?, ?)',
-      [sessionId, role, content, timestamp],
-      (err) => {
-        if (err) reject(err);
-        resolve();
-      }
-    );
-  });
+  if (!messages.has(sessionId)) messages.set(sessionId, []);
+  messages.get(sessionId).push({ role, content, timestamp: Date.now() });
+  return Promise.resolve();
 }
 
 function getHistory(sessionId) {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT role, content, timestamp FROM messages WHERE sessionId = ? ORDER BY timestamp ASC', 
-      [sessionId], 
-      (err, rows) => {
-        if (err) reject(err);
-        resolve(rows || []);
-      }
-    );
-  });
+  return Promise.resolve(messages.get(sessionId) || []);
 }
 
 function clearSession(sessionId) {
-  return new Promise((resolve, reject) => {
-    db.run('DELETE FROM messages WHERE sessionId = ?', [sessionId], (err) => {
-      if (err) reject(err);
-      resolve();
-    });
-  });
+  messages.set(sessionId, []);
+  return Promise.resolve();
 }
 
 function getHistoryList(userId) {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT sessionId, sessionStart FROM sessions WHERE userId = ? ORDER BY sessionStart DESC', 
-      [userId], 
-      (err, rows) => {
-        if (err) reject(err);
-        resolve(rows || []);
-      }
-    );
-  });
+  const uid = userId || 'anonymous';
+  const sessionIds = userSessions.get(uid) || [];
+  const list = sessionIds
+    .filter(id => sessions.has(id))
+    .map(id => sessions.get(id))
+    .sort((a, b) => b.sessionStart - a.sessionStart);
+  return Promise.resolve(list);
 }
 
 module.exports = { getSession, updateUserName, saveMessage, getHistory, clearSession, getHistoryList };
