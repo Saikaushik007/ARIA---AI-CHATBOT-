@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const chatWindow = document.getElementById('chat-window');
 
   let currentFile = null;
-  let voiceOutputEnabled = true;
+  let voiceOutputEnabled = false; // OFF by default — user must turn it ON
 
   // Voice setup
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -90,11 +90,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadHistoryList();
   });
 
-  // Voice Toggle Logic
+  // Voice Toggle Logic — always cancel any ongoing speech when toggling
   btnToggleVoice.addEventListener('click', () => {
     voiceOutputEnabled = !voiceOutputEnabled;
+    window.speechSynthesis.cancel(); // Stop any current speech immediately
     btnToggleVoice.innerHTML = voiceOutputEnabled ? '🔊 Voice Output: ON' : '🔇 Voice Output: OFF';
-    if (!voiceOutputEnabled) window.speechSynthesis.cancel();
   });
 
   // Speech Recognition Logic
@@ -179,8 +179,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     this.style.height = Math.min(this.scrollHeight, 150) + 'px';
   });
 
-  // Clear chat
+  // Clear chat — always kill voice so it doesn't read stale session content
   btnClear.addEventListener('click', async () => {
+    window.speechSynthesis.cancel(); // Stop voice immediately before clearing
     await window.ariaApi.clearSession();
     chatWindow.innerHTML = '';
     addMessage("Session cleared. How can I help you next?", false);
@@ -192,6 +193,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function handleSend() {
     const text = msgInput.value.trim();
     if (!text && !currentFile) return;
+
+    // Detect stop voice commands BEFORE sending to API
+    const stopCommands = /^(stop|stop talking|be quiet|silence|shut up|stop speaking|pause voice)$/i;
+    if (stopCommands.test(text)) {
+      window.speechSynthesis.cancel();
+      msgInput.value = '';
+      addMessage(text, true);
+      addMessage('Voice stopped. I will be quiet until you ask me to speak again.', false);
+      return;
+    }
 
     msgInput.value = '';
     msgInput.style.height = 'auto';
@@ -214,16 +225,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Refresh history list so the new session pops up if it was newly created
     loadHistoryList();
 
-    // Text to Speech
-    if (voiceOutputEnabled) {
-      // Strip markdown for speech
-      const plainText = response.reply.replace(/[*_#`]/g, '');
-      const utterance = new SpeechSynthesisUtterance(plainText);
-      // Try to find a good female English voice if available
-      const voices = window.speechSynthesis.getVoices();
-      const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Google UK English Female'));
-      if (femaleVoice) utterance.voice = femaleVoice;
-      window.speechSynthesis.speak(utterance);
+    // Text to Speech — only speak NEW replies, never history
+    if (voiceOutputEnabled && response.reply) {
+      window.speechSynthesis.cancel(); // Cancel any ongoing speech first
+      // Strip markdown for clean speech
+      const plainText = response.reply
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/#{1,6}\s/g, '')
+        .replace(/`{1,3}[^`]*`{1,3}/g, '')
+        .replace(/\(Note:.*?\)/g, '') // Remove offline mode notes
+        .trim();
+      if (plainText.length > 0) {
+        const utterance = new SpeechSynthesisUtterance(plainText);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        // Try to find a good female English voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const femaleVoice = voices.find(v =>
+          v.name.includes('Female') ||
+          v.name.includes('Samantha') ||
+          v.name.includes('Google UK English Female')
+        );
+        if (femaleVoice) utterance.voice = femaleVoice;
+        window.speechSynthesis.speak(utterance);
+      }
     }
   }
 
