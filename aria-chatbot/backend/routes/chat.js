@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { GoogleGenAI } = require('@google/genai');
+const Groq = require('groq-sdk');
 const sessionManager = require('../engine/sessionManager');
 const fs = require('fs');
 
 // Configure Multer for in-memory file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Initialize Groq Client
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const SYSTEM_INSTRUCTION = `You are ARIA (Adaptive Rule-based Intelligent Assistant). You are a highly capable, professional, and intelligent assistant. Provide accurate, exact, and detailed responses. Do not act childish or overly casual. You are integrated into a premium, modern chat interface. Provide clean, readable text. Use markdown for formatting lists, code, and emphasis. If the user asks about an image, analyze it thoroughly.`;
 
@@ -28,21 +28,21 @@ router.post('/chat', upload.single('file'), async (req, res) => {
     // 1. Ensure session exists
     await sessionManager.getSession(sessionId, userId);
 
-    // 2. Format user content for saving to DB and for Gemini
+    // 2. Format user content for saving to DB
     let dbContent = messageText;
-    let geminiContents = [];
+    let groqContent = [];
     
     if (messageText) {
-      geminiContents.push(messageText);
+      groqContent.push({ type: "text", text: messageText });
     }
 
     if (file) {
       dbContent = `[Attached File: ${file.originalname}]\n${messageText}`;
-      // Format file for Gemini GenAI SDK
-      geminiContents.push({
-        inlineData: {
-          data: file.buffer.toString("base64"),
-          mimeType: file.mimetype
+      // Format file for Groq Vision
+      groqContent.push({
+        type: "image_url",
+        image_url: {
+          url: `data:${file.mimetype};base64,${file.buffer.toString("base64")}`
         }
       });
     }
@@ -52,39 +52,40 @@ router.post('/chat', upload.single('file'), async (req, res) => {
 
     // 3. Fetch past history to maintain context
     const history = await sessionManager.getHistory(sessionId);
-    // Convert history to Gemini format. We only keep recent history to avoid token limits.
+    // Convert history to Groq format. We only keep recent history to avoid token limits.
     const recentHistory = history.slice(-10); // Last 10 messages
     
     const formattedHistory = recentHistory.map(msg => {
-      // Basic formatting, mapping our DB roles to Gemini roles
-      const role = msg.role === 'user' ? 'user' : 'model';
+      // Basic formatting, mapping our DB roles to Groq roles
+      const role = msg.role === 'user' ? 'user' : 'assistant';
       return {
         role: role,
-        parts: [{ text: msg.content }]
+        content: msg.content
       };
     });
 
-    // 4. Call Gemini API
+    // 4. Call Groq API
     let responseText = "";
     
-    if (geminiContents.length > 0) {
+    if (groqContent.length > 0) {
         // Add the current message to the end of the history
         formattedHistory.push({
             role: 'user',
-            parts: geminiContents.map(part => {
-                if (typeof part === 'string') return { text: part };
-                return part; // For inlineData
-            })
+            content: file ? groqContent : messageText // Groq requires simple string if no image is present for standard models
         });
 
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash',
-          contents: formattedHistory,
-          config: {
-              systemInstruction: SYSTEM_INSTRUCTION
-          }
+        // Use Vision model if there is a file, otherwise use the fast Llama 3 model
+        const modelName = file ? 'llama-3.2-11b-vision-preview' : 'llama3-8b-8192';
+
+        const response = await groq.chat.completions.create({
+          messages: [
+            { role: 'system', content: SYSTEM_INSTRUCTION },
+            ...formattedHistory
+          ],
+          model: modelName,
         });
-        responseText = response.text;
+        
+        responseText = response.choices[0]?.message?.content || "";
     }
 
     // Save AI response to history
@@ -98,13 +99,13 @@ router.post('/chat', upload.single('file'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("Groq API Error:", error);
     
-    // If we hit a 429 quota limit, automatically fall back to the local response engine!
+    // If we hit a quota limit or error, automatically fall back to the local response engine!
     const responseEngine = require('../engine/responseEngine');
     const localFallback = responseEngine.getResponse(messageText || "Attached a file", { fallbackIndex: 0 });
     
-    const offlineReply = localFallback.reply + "\n\n*(Note: ARIA is currently in Offline Mode because your API Key is out of quota. I am using my local rule-based engine to respond until you get a new key!)*";
+    const offlineReply = localFallback.reply + "\n\n*(Note: ARIA is currently in Offline Mode because the API returned an error. I am using my local rule-based engine to respond!)*";
     
     await sessionManager.saveMessage(sessionId, 'aria', offlineReply);
     
