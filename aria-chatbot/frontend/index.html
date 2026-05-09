@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARIA — Next Gen Assistant</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="/css/main.css?v=6">
+  <link rel="stylesheet" href="/css/chat.css?v=6">
+</head>
+<body>
+  <!-- Atmospheric Background Orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div id="toast"></div>
+
+  <div id="app">
+    <aside id="sidebar" class="hidden">
+      <div id="sidebar-header">
+        <div class="logo-wrap">
+          <div class="logo-text">ARIA</div>
+          <div class="logo-sub">AI Assistant</div>
+        </div>
+      </div>
+      
+      <div id="quick-panel">
+        <div class="sidebar-section-title">Quick Actions</div>
+        <button class="quick-btn" onclick="appController.sendQuick('Analyze this document')">📄 Analyze Document</button>
+        <button class="quick-btn" onclick="appController.sendQuick('Explain a complex topic')">🧠 Explain Topic</button>
+        <button class="quick-btn" onclick="appController.sendQuick('Write some code')">💻 Write Code</button>
+        
+        <div class="sidebar-section-title" style="margin-top: 20px;">Settings</div>
+        <button class="quick-btn" id="btn-toggle-voice">🔊 Voice Output: ON</button>
+        
+        <div class="sidebar-section-title" style="margin-top: 20px;">Session Info</div>
+        <div class="history-status" id="history-status">
+          <span class="dot-green"></span> Connecting...
+        </div>
+
+        <div class="sidebar-section-title" style="margin-top: 20px; display: flex; justify-content: space-between;">
+          <span>Past Conversations</span>
+          <button id="btn-new-chat" class="icon-btn" title="New Chat">+</button>
+        </div>
+        <div id="history-list" class="history-list-container">
+          <!-- History items injected here -->
+        </div>
+      </div>
+      
+      <div id="sidebar-actions">
+        <button class="action-btn" id="btn-clear">🗑️ Clear Chat</button>
+      </div>
+    </aside>
+    
+    <main id="main">
+      <div id="topbar">
+        <div style="display: flex; align-items: center;">
+          <button id="btn-toggle-sidebar" class="icon-btn" style="margin-right: 16px; font-size: 24px;">☰</button>
+          <div class="topbar-title">ARIA Chatbot</div>
+        </div>
+        <div id="typing-status" class="typing-status">ARIA is thinking...</div>
+      </div>
+      
+      <div id="chat-window">
+        <!-- Messages will be injected here -->
+      </div>
+      
+      <div id="input-bar">
+        <!-- File preview area -->
+        <div id="file-preview-wrap"></div>
+        
+        <div id="input-wrap">
+          <label for="file-upload" id="file-upload-btn" title="Upload File or Image">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+            </svg>
+          </label>
+          <input type="file" id="file-upload" style="display: none;">
+          
+          <textarea id="msg-input" placeholder="Message ARIA..." rows="1"></textarea>
+          
+          <button id="mic-btn" title="Speak to ARIA">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </button>
+          
+          <button id="send-btn" title="Send Message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/api.js?v=6"></script>
+  <script src="/js/chatUI.js?v=6"></script>
+  <script src="/js/app.js?v=6"></script>
+</body>
+</html>

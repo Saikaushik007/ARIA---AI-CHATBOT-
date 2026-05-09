@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARIA — Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="star-field" aria-hidden="true"></div>
+    <nav class="navbar">
+      <div class="nav-logo">
+        <span class="logo-text">YourLogo</span>
+      </div>
+      <div class="nav-links">
+        <a href="#" class="nav-link">Home</a>
+        <a href="#" class="nav-link active">About</a>
+        <a href="#" class="nav-link" id="navHistoryBtn">History</a>
+        <a href="#" class="nav-link" id="navNewChatBtn">New Chat</a>
+        <a href="#" class="nav-link">Contact</a>
+        <a href="#" class="nav-btn" id="navLogoutBtn">Sign In</a>
+      </div>
+      
+      <!-- History Dropdown Panel -->
+      <div id="historyDropdown" class="history-dropdown hidden">
+        <div class="dropdown-header">Past Conversations</div>
+        <div id="historyList" class="history-list">
+          <div class="empty-history">No past conversations yet.</div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="chat-shell">
+      <header class="topbar">
+        <div class="logo-row">
+          <div class="logo-badge">ARIA</div>
+          <div>
+            <p class="brand-title">Adaptive Rule-based Intelligent Assistant</p>
+            <div class="status-row">
+              <span class="status-dot"></span>
+              <span class="status-text">online</span>
+            </div>
+          </div>
+        </div>
+        <div class="mood-block">
+          <span id="ariaMoodEmoji">🤖</span>
+          <span id="ariaMoodLabel">Ready</span>
+        </div>
+      </header>
+
+      <section class="chat-window" id="chatWindow" aria-live="polite" aria-label="Chat messages">
+      </section>
+
+      <section class="quick-chips" id="quickChips" aria-label="Suggested replies"></section>
+
+      <form id="chatForm" class="chat-input-area" autocomplete="off">
+        <div class="input-glow">
+          <div class="input-controls">
+            <textarea id="userInput" class="text-input" placeholder="Ask ARIA anything..." rows="1"></textarea>
+            <label class="file-upload-label" title="Upload file or image">
+              📎
+              <input type="file" id="fileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="display: none;" />
+            </label>
+          </div>
+          <button id="sendBtn" type="submit" class="send-button" aria-label="Send message">➤</button>
+        </div>
+        <div id="filePreview" class="file-preview"></div>
+      </form>
+    </main>
+  </div>
+
+  <script src="chat-app.js"></script>
+</body>
+</html>
