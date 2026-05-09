@@ -99,16 +99,20 @@ router.post('/chat', upload.single('file'), async (req, res) => {
 
   } catch (error) {
     console.error("Gemini API Error:", error);
-    let errorMsg = "Sorry, I encountered an error connecting to the AI servers.";
-    if (error.status === 429) {
-        errorMsg = "API Rate Limit Exceeded (429). The API key you provided has hit its quota limit. Please generate a new key or wait a moment.";
-    } else if (error.status === 400) {
-        errorMsg = "API Key Invalid (400). Please check that you copied the key correctly.";
-    } else if (error.status === 503) {
-        errorMsg = "Service Unavailable (503). The AI model is currently experiencing high demand. Please try again later.";
-    }
     
-    res.status(500).json({ error: errorMsg });
+    // If we hit a 429 quota limit, automatically fall back to the local response engine!
+    const responseEngine = require('../engine/responseEngine');
+    const localFallback = responseEngine.getResponse(messageText || "Attached a file", { fallbackIndex: 0 });
+    
+    const offlineReply = localFallback.reply + "\n\n*(Note: ARIA is currently in Offline Mode because your API Key is out of quota. I am using my local rule-based engine to respond until you get a new key!)*";
+    
+    await sessionManager.saveMessage(sessionId, 'aria', offlineReply);
+    
+    return res.json({
+      reply: offlineReply,
+      mood: localFallback.mood,
+      chips: localFallback.chips || []
+    });
   }
 });
 
